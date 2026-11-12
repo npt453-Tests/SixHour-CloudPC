@@ -1,0 +1,54 @@
+
+name: Start Six-Hour Cloud PC
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  cloud-pc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Start Windows VM
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          VM_NAME: ${{ vars.AZURE_VM_NAME }}
+        run: |
+          set -euo pipefail
+          test -n "$RESOURCE_GROUP"
+          test -n "$VM_NAME"
+
+          az vm start \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME"
+
+      - name: Six-hour session timer
+        run: sleep 5h50m
+
+      - name: Renew Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Automatically stop VM
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          VM_NAME: ${{ vars.AZURE_VM_NAME }}
+        run: |
+          az vm deallocate \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME"
